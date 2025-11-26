@@ -1,158 +1,225 @@
+// ===============================
+// 🟦 SERVER KHO ĐƯỜNG BÍCH TUYỀN
+// ===============================
+
 require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 
 const app = express();
+
+// DEBUG xem biến môi trường MongoDB
+console.log("DEBUG 👉 MONGO_URI =", process.env.MONGO_URI);
+
+// MIDDLEWARE
 app.use(cors());
 app.use(express.json());
 
-// ==========================
-// DEBUG CHECK MONGO URI
-// ==========================
-console.log("DEBUG 👉 MONGO_URI =", process.env.MONGO_URI);
+// ===============================
+// 🟦 KẾT NỐI MONGODB
+// ===============================
+const uri = process.env.MONGO_URI;
 
-// ==========================
-// KẾT NỐI MONGODB
-// ==========================
+if (!uri) {
+    console.error("❌ ERROR: MONGO_URI không tồn tại trong Environment của Render!");
+}
+
 mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("[DB] Connected MongoDB"))
-  .catch((err) => console.error("[DB] Error:", err));
+    .connect(uri)
+    .then(() => console.log("[DB] Connected MongoDB"))
+    .catch((err) => console.error("[DB] Error:", err));
 
-
-// ==========================
-// MODEL SẢN PHẨM
-// ==========================
+// ===============================
+// 🟦 MODEL SẢN PHẨM
+// ===============================
 const productSchema = new mongoose.Schema({
-  name: String,
-  group: String,
-  kgPerBao: Number
+    name: String,
+    group: String,
+    kgPerBao: Number,
 });
 
 const Product = mongoose.model("Product", productSchema);
 
-
-// ==========================
-// DỮ LIỆU MẶC ĐỊNH (LOCAL DEV)
-// ==========================
+// ===============================
+// 🟦 DỮ LIỆU MẶC ĐỊNH
+// ===============================
 const defaultProducts = [
-  { name: "Đường Cát 50KG", group: "Đường cát", kgPerBao: 50 },
-  { name: "Đường Cây 12KG", group: "Đường cát", kgPerBao: 12 },
-  { name: "Đường Bi Xanh Dương", group: "Bi", kgPerBao: 10 }
+    { name: "Nhuyễn", group: "Đường cát", kgPerBao: 50 },
+    { name: "Trung", group: "Đường cát", kgPerBao: 50 },
+    { name: "Sóc Trăng To", group: "Đường cát", kgPerBao: 50 },
+    { name: "Sóc Trăng Trung", group: "Đường cát", kgPerBao: 50 },
+    { name: "Mía tím", group: "Đường cát", kgPerBao: 50 },
+    { name: "Vàng", group: "Đường cát", kgPerBao: 50 },
+    { name: "Phèn Xá", group: "Phèn", kgPerBao: 10 },
+    { name: "Phèn BI Xanh Dương", group: "Phèn", kgPerBao: 10 },
+    { name: "Phèn BI Xanh Lá", group: "Phèn", kgPerBao: 10 },
+    { name: "Phèn Hạt Cam", group: "Phèn", kgPerBao: 10 },
+    { name: "Phèn BI Túi", group: "Phèn", kgPerBao: 20 },
+    { name: "Bi Đường", group: "Bi / phụ phẩm", kgPerBao: 10 },
+    { name: "Bi Túi 500g", group: "Bi / phụ phẩm", kgPerBao: 10 },
+    { name: "Bi Túi 1kg", group: "Bi / phụ phẩm", kgPerBao: 10 },
 ];
 
-// ==========================
-// SEED DATABASE — CHỈ CHẠY KHI LOCAL
-// ==========================
-async function seedProducts() {
-  try {
+// ===============================
+// 🟦 KHỞI TẠO DỮ LIỆU MẶC ĐỊNH (DEV)
+// ===============================
+async function initProductsIfNeeded() {
     if (process.env.ENV === "production") {
-      console.log("[SEED] Bỏ qua seed vì đang chạy Render");
-      return;
+        console.log("[SEED] Bỏ qua seed vì đang chạy Render");
+        return;
     }
 
     const count = await Product.countDocuments();
     if (count === 0) {
-      await Product.insertMany(defaultProducts);
-      console.log("[INIT] Inserted default products");
+        await Product.insertMany(defaultProducts);
+        console.log("[INIT] Inserted default products");
     } else {
-      console.log("[INIT] Database đã có sản phẩm → không seed");
+        console.log("[INIT] Database đã có sản phẩm → không seed");
     }
-
-  } catch (err) {
-    console.error("[SEED ERROR]", err);
-  }
 }
-seedProducts();
 
+initProductsIfNeeded().catch(console.error);
 
-// ==========================
-// API ROUTES
-// ==========================
+// ===============================
+// 🟦 API PRODUCTS
+// ===============================
 
 // Lấy danh sách sản phẩm
 app.get("/products", async (req, res) => {
-  try {
     const products = await Product.find({});
     res.json(products);
-  } catch (err) {
-    res.status(500).json({ message: "Error fetching products", error: err });
-  }
 });
 
-// ====== API: THÊM 1 SẢN PHẨM ======
+// Thêm 1 sản phẩm
 app.post("/products", async (req, res) => {
-  try {
-    const { name, group, kgPerBao } = req.body;
+    try {
+        const { name, group, kgPerBao } = req.body;
 
-    if (!name || !group || !kgPerBao) {
-      return res.status(400).json({ error: "Thiếu dữ liệu bắt buộc!" });
+        const newProduct = await Product.create({ name, group, kgPerBao });
+        res.status(201).json(newProduct);
+    } catch (err) {
+        res.status(500).json({ error: "Lỗi thêm sản phẩm" });
     }
-
-    const newProduct = await Product.create({ name, group, kgPerBao });
-
-    res.status(201).json({
-      message: "Thêm sản phẩm thành công!",
-      product: newProduct
-    });
-  } catch (err) {
-    console.error("Lỗi tạo sản phẩm:", err);
-    res.status(500).json({ error: "Lỗi server" });
-  }
 });
 
-// ====== API: THÊM NHIỀU SẢN PHẨM ======
+// Thêm nhiều sản phẩm 1 lần (Batch Insert)
 app.post("/products/batch", async (req, res) => {
-  try {
-    const products = req.body;
+    try {
+        const list = req.body.products;
 
-    if (!Array.isArray(products) || products.length === 0) {
-      return res.status(400).json({ error: "Dữ liệu phải là mảng sản phẩm!" });
+        if (!Array.isArray(list)) {
+            return res.status(400).json({ error: "products phải là mảng" });
+        }
+
+        const inserted = await Product.insertMany(list);
+        res.status(201).json(inserted);
+    } catch (err) {
+        res.status(500).json({ error: "Lỗi batch insert sản phẩm" });
     }
-
-    const inserted = await Product.insertMany(products);
-
-    res.status(201).json({
-      message: "Thêm nhiều sản phẩm thành công!",
-      count: inserted.length,
-      data: inserted
-    });
-
-  } catch (err) {
-    console.error("Batch insert error:", err);
-    res.status(500).json({ error: "Lỗi server khi thêm nhiều sản phẩm" });
-  }
 });
 
-// Cập nhật sản phẩm
-app.put("/products/:id", async (req, res) => {
-  try {
-    const updated = await Product.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
-    res.json({ message: "Updated", product: updated });
-  } catch (err) {
-    res.status(500).json({ message: "Error updating product", error: err });
-  }
+// ===============================
+// 🟦 MODEL LỊCH SỬ NHẬP – XUẤT KHO
+// ===============================
+const inventorySchema = new mongoose.Schema({
+    productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+    type: { type: String, enum: ["nhap", "xuat"], required: true },
+    quantityBao: Number,
+    quantityKg: Number,
+    note: String,
+    createdAt: { type: Date, default: Date.now },
 });
 
-// Xóa sản phẩm
-app.delete("/products/:id", async (req, res) => {
-  try {
-    await Product.findByIdAndDelete(req.params.id);
-    res.json({ message: "Deleted" });
-  } catch (err) {
-    res.status(500).json({ message: "Error deleting product", error: err });
-  }
+const Inventory = mongoose.model("Inventory", inventorySchema);
+
+// ===============================
+// 🟦 API NHẬP KHO
+// ===============================
+app.post("/inventory/import", async (req, res) => {
+    try {
+        const { productId, quantityBao, note } = req.body;
+
+        if (!productId || !quantityBao)
+            return res.status(400).json({ error: "Thiếu productId hoặc quantityBao" });
+
+        const product = await Product.findById(productId);
+        if (!product) return res.status(404).json({ error: "Sản phẩm không tồn tại" });
+
+        const quantityKg = quantityBao * product.kgPerBao;
+
+        const history = await Inventory.create({
+            productId,
+            type: "nhap",
+            quantityBao,
+            quantityKg,
+            note,
+        });
+
+        res.json({ message: "Nhập kho thành công!", history });
+    } catch (err) {
+        console.error("Lỗi nhập kho:", err);
+        res.status(500).json({ error: "Lỗi nhập kho" });
+    }
 });
 
-// ==========================
-// CHẠY SERVER
-// ==========================
+// ===============================
+// 🟦 API LỊCH SỬ KHO
+// ===============================
+app.get("/inventory/history", async (req, res) => {
+    try {
+        const data = await Inventory.find({})
+            .populate("productId")
+            .sort({ createdAt: -1 });
+
+        res.json(data);
+    } catch (err) {
+        res.status(500).json({ error: "Lỗi lấy lịch sử kho" });
+    }
+});
+
+// ===============================
+// 🟦 API TÍNH TỒN KHO
+// ===============================
+app.get("/inventory/stock", async (req, res) => {
+    try {
+        const products = await Product.find({});
+        const history = await Inventory.find({});
+
+        let result = [];
+
+        for (let p of products) {
+            const records = history.filter(r => r.productId?.toString() === p._id.toString());
+
+            const totalNhap = records.filter(r => r.type === "nhap")
+                                     .reduce((s, r) => s + r.quantityKg, 0);
+
+            const totalXuat = records.filter(r => r.type === "xuat")
+                                     .reduce((s, r) => s + r.quantityKg, 0);
+
+            const tonKg = totalNhap - totalXuat;
+            const tonBao = tonKg / p.kgPerBao;
+
+            result.push({
+                product: p.name,
+                group: p.group,
+                kgPerBao: p.kgPerBao,
+                tonBao,
+                tonKg,
+            });
+        }
+
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: "Lỗi tính tồn kho" });
+    }
+});
+
+// ===============================
+// 🟦 START SERVER
+// ===============================
 const PORT = process.env.PORT || 10000;
+
 app.listen(PORT, () => {
-  console.log(`Backend running on port ${PORT}`);
+    console.log(`Backend running on port ${PORT}`);
 });
