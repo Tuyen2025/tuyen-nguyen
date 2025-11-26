@@ -10,7 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 // ====== KẾT NỐI MONGODB ======
-const uri = process.env.MONGODB_URI;
+const uri = process.env.MONGO_URI; 
 mongoose
   .connect(uri, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("[DB] Connected MongoDB"))
@@ -283,6 +283,7 @@ app.get("/api/history/:dateKey", async (req, res) => {
 // ====== START SERVER ======
 const PORT = process.env.PORT || 10000;
 app.listen(PORT)
+
 
 
 
