@@ -26,8 +26,8 @@ mongoose
 // ==========================
 const productSchema = new mongoose.Schema({
   name: String,
-  price: Number,
-  qty: Number,
+  group: String,
+  kgPerBao: Number
 });
 
 const Product = mongoose.model("Product", productSchema);
@@ -37,14 +37,10 @@ const Product = mongoose.model("Product", productSchema);
 // DỮ LIỆU MẶC ĐỊNH (LOCAL DEV)
 // ==========================
 const defaultProducts = [
-  { name: "Đường Cát 50KG", price: 0, qty: 0 },
-  { name: "Đường Cây 12KG", price: 0, qty: 0 },
-  { name: "Đường Bi Xanh Dương", price: 0, qty: 0 },
-  { name: "Đường Bi Xanh Lá", price: 0, qty: 0 },
-  { name: "Đường Bi Cam", price: 0, qty: 0 },
-  { name: "Đường Bi Túi 20KG", price: 0, qty: 0 }
+  { name: "Đường Cát 50KG", group: "Đường cát", kgPerBao: 50 },
+  { name: "Đường Cây 12KG", group: "Đường cát", kgPerBao: 12 },
+  { name: "Đường Bi Xanh Dương", group: "Bi", kgPerBao: 10 }
 ];
-
 
 // ==========================
 // SEED DATABASE — CHỈ CHẠY KHI LOCAL
@@ -84,6 +80,28 @@ app.get("/products", async (req, res) => {
     res.status(500).json({ message: "Error fetching products", error: err });
   }
 });
+
+// ====== API: THÊM 1 SẢN PHẨM ======
+app.post("/products", async (req, res) => {
+  try {
+    const { name, group, kgPerBao } = req.body;
+
+    if (!name || !group || !kgPerBao) {
+      return res.status(400).json({ error: "Thiếu dữ liệu bắt buộc!" });
+    }
+
+    const newProduct = await Product.create({ name, group, kgPerBao });
+
+    res.status(201).json({
+      message: "Thêm sản phẩm thành công!",
+      product: newProduct
+    });
+  } catch (err) {
+    console.error("Lỗi tạo sản phẩm:", err);
+    res.status(500).json({ error: "Lỗi server" });
+  }
+});
+
 // ====== API: THÊM NHIỀU SẢN PHẨM ======
 app.post("/products/batch", async (req, res) => {
   try {
@@ -104,43 +122,6 @@ app.post("/products/batch", async (req, res) => {
   } catch (err) {
     console.error("Batch insert error:", err);
     res.status(500).json({ error: "Lỗi server khi thêm nhiều sản phẩm" });
-  }
-});
-
-// ====== API: THÊM SẢN PHẨM ======
-app.post("/products", async (req, res) => {
-    try {
-        const { name, group, kgPerBao } = req.body;
-
-        // KIỂM TRA DỮ LIỆU
-        if (!name || !group || !kgPerBao) {
-            return res.status(400).json({ error: "Thiếu dữ liệu bắt buộc!" });
-        }
-
-        const newProduct = await Product.create({
-            name,
-            group,
-            kgPerBao
-        });
-
-        res.status(201).json({
-            message: "Thêm sản phẩm thành công!",
-            product: newProduct
-        });
-    } catch (err) {
-        console.error("Lỗi tạo sản phẩm:", err);
-        res.status(500).json({ error: "Lỗi server" });
-    }
-});
-
-// Tạo sản phẩm
-app.post("/products", async (req, res) => {
-  try {
-    const p = new Product(req.body);
-    await p.save();
-    res.json({ message: "Created", product: p });
-  } catch (err) {
-    res.status(500).json({ message: "Error creating product", error: err });
   }
 });
 
@@ -168,7 +149,6 @@ app.delete("/products/:id", async (req, res) => {
   }
 });
 
-
 // ==========================
 // CHẠY SERVER
 // ==========================
@@ -176,5 +156,3 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
 });
-
-
