@@ -84,6 +84,29 @@ app.get("/products", async (req, res) => {
     res.status(500).json({ message: "Error fetching products", error: err });
   }
 });
+// ====== API: THÊM NHIỀU SẢN PHẨM ======
+app.post("/products/batch", async (req, res) => {
+  try {
+    const products = req.body;
+
+    if (!Array.isArray(products) || products.length === 0) {
+      return res.status(400).json({ error: "Dữ liệu phải là mảng sản phẩm!" });
+    }
+
+    const inserted = await Product.insertMany(products);
+
+    res.status(201).json({
+      message: "Thêm nhiều sản phẩm thành công!",
+      count: inserted.length,
+      data: inserted
+    });
+
+  } catch (err) {
+    console.error("Batch insert error:", err);
+    res.status(500).json({ error: "Lỗi server khi thêm nhiều sản phẩm" });
+  }
+});
+
 // ====== API: THÊM SẢN PHẨM ======
 app.post("/products", async (req, res) => {
     try {
@@ -153,4 +176,5 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
 });
+
 
