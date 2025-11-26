@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kho Đường Bích Tuyền – V6 ONLINE</title>
+
+  <!-- AI OCR -->
+  <script src="https://unpkg.com/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f1f2f6;
+      margin: 0;
+      padding: 12px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .search {
+      width: 100%;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #aaa;
+      margin-bottom: 10px;
+    }
+    .toolbar {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .toolbar button {
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      color: #fff;
+    }
+    .btn-import { background: #0984e3; }
+    .btn-export { background: #e17055; }
+    .btn-reset  { background: #d63031; }
+    .btn-copy   { background: #e67e22; }
+    .btn-excel  { background: #00b894; }
+
+    .total {
+      text-align: center;
+      padding: 8px;
+      background: #dff9fb;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-size: 16px;
+      color: #22a6b3;
+    }
+
+    .card {
+      background: #fff;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      margin-bottom: 10px;
+      border-left: 6px solid transparent;
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .product-title {
+      font-size: 16px;
+      font-weight: bold;
+    }
+    .group {
+      font-size: 12px;
+      color: #555;
+    }
+    .unit-info {
+      font-size: 11px;
+      color: #888;
+      margin-top: 2px;
+    }
+    .row {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .row input {
+      flex: 1;
+    }
+    input[type="number"] {
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid #bbb;
+      font-size: 13px;
+    }
+    .label {
+      font-size: 11px;
+      color: #555;
+    }
+    .result {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #2d3436;
+    }
+    .result span.bold { font-weight: bold; }
+    .sparkline {
+      font-size: 11px;
+      color: #636e72;
+      margin-top: 3px;
+    }
+
+    .status {
+      margin-top: 6px;
+      font-size: 13px;
+      color: #636e72;
+      text-align: center;
+    }
+
+    /* màu nhóm */
+    .card[data-group="Đường cát"]     { border-left-color:#e67e22; }
+    .card[data-group="Phèn"]          { border-left-color:#e84393; }
+    .card[data-group="Bi / phụ phẩm"] { border-left-color:#00b894; }
+
+    /* overlay OCR */
+    #ocrOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+    #ocrBox {
+      background: #fff;
+      padding: 14px;
+      border-radius: 10px;
+      max-width: 90%;
+      max-height: 70%;
+      overflow-y: auto;
+      font-size: 13px;
+    }
+    #ocrBox h3 { margin-top: 0; }
+    #ocrBox pre {
+      white-space: pre-wrap;
+      font-size: 11px;
+    }
+    #ocrBox button {
+      width: 100%;
+      padding: 8px;
+      border-radius: 8px;
+      border: none;
+      margin-top: 8px;
+      background: #0984e3;
+      color: #fff;
+    }
+
+    /* lịch sử ngày */
+    .history-box {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #636e72;
+    }
+    .history-box select {
+      width: 100%;
+      padding: 5px;
+      border-radius: 6px;
+      border: 1px solid #bbb;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h2>📦 KHO ĐƯỜNG BÍCH TUYỀN – V6 ONLINE</h2>
+
+  <input type="text" id="search" class="search" placeholder="Tìm sản phẩm..." oninput="renderList()">
+
+  <div class="toolbar">
+    <button class="btn-import" onclick="triggerImage('nhap')">📥 ẢNH PHIẾU NHẬP (AI tự đọc)</button>
+    <button class="btn-export" onclick="triggerImage('xuat')">📤 ẢNH PHIẾU XUẤT (AI tự đọc)</button>
+    <button class="btn-reset"  onclick="resetData()">🔄 Reset dữ liệu ngày (0 tồn / 0 nhập / 0 xuất)</button>
+    <button class="btn-copy"   onclick="copyReport()">📄 Copy báo cáo gửi Zalo</button>
+    <button class="btn-excel"  onclick="exportCSV()">📊 Xuất Excel (CSV)</button>
+  </div>
+
+  <div id="totalBox" class="total">Đang tải dữ liệu kho...</div>
+
+  <div id="list"></div>
+
+  <div class="history-box">
+    <div><b>Lịch sử tồn kho (đóng ngày):</b></div>
+    <button style="margin-top:5px;padding:6px 10px;border-radius:6px;border:none;background:#6c5ce7;color:#fff;font-size:12px;width:100%;" onclick="snapshotToday()">💾 Lưu tồn cuối hôm nay lên server</button>
+    <select id="historySelect" onchange="showHistorySummary()">
+      <option value="">-- Chọn ngày xem lịch sử --</option>
+    </select>
+    <div id="historySummary"></div>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <input type="file" id="imgInput" accept="image/*" style="display:none" onchange="handleImageChange(event)">
+
+  <div id="ocrOverlay">
+    <div id="ocrBox">
+      <h3>Kết quả AI đọc được</h3>
+      <div id="ocrSummary"></div>
+      <pre id="ocrRaw"></pre>
+      <button onclick="closeOverlay()">Đóng</button>
+    </div>
+  </div>
+
+  <script>
+    // ======= CẤU HÌNH BACKEND =======
+    // Khi deploy lên VPS/domain, chỉ cần đổi dòng này:
+    const BACKEND = "http://localhost:4000";
+
+    // ======= STATE TOÀN CỤC =======
+    let inventoryData = [];      // dữ liệu tồn kho từ server cho ngày hiện tại
+    let sparkHistory = {};       // {productName: [{dateKey, value}, ...]}
+    let currentDateKey = todayKey();
+    let currentImageType = null; // "nhap" | "xuat"
+
+    // alias dùng cho AI OCR map tên tắt → tên chuẩn
+    const aliasMap = [
+      { key: "duong mia tim",       target: "Mía tím" },
+      { key: "duong mia",           target: "Mía tím" },
+      { key: "soc trang to",        target: "Sóc Trăng To" },
+      { key: "duong soc trang to",  target: "Sóc Trăng To" },
+      { key: "soc trang trung",     target: "Sóc Trăng Trung" },
+      { key: "duong soc trang trung", target: "Sóc Trăng Trung" },
+      { key: "duong trung",         target: "Trung" },
+      { key: "duong nhuyen",        target: "Nhuyễn" },
+      { key: "duong vang",          target: "Vàng" },
+
+      { key: "phen xa",             target: "Phèn Xá" },
+      { key: "phen bi xanh duong",  target: "Phèn BI Xanh Dương" },
+      { key: "phen bi xanh la",     target: "Phèn BI Xanh Lá" },
+      { key: "phen hat cam",        target: "Phèn Hạt Cam" },
+      { key: "phen bi tui",         target: "Phèn BI Túi" },
+
+      { key: "bi duong",            target: "Bi Đường" },
+      { key: "bi tui 500",          target: "Bi Túi 500g" },
+      { key: "bi tui 1kg",          target: "Bi Túi 1kg" }
+    ];
+
+    // ======= HÀM TIỆN ÍCH =======
+    function todayKey() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const da = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${da}`;
+    }
+
+    function normalize(str) {
+      return str
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function findProductByLine(line) {
+      const norm = normalize(line);
+      let bestMatch = null;
+
+      aliasMap.forEach(a => {
+        if (norm.includes(a.key)) {
+          bestMatch = a.target;
+        }
+      });
+
+      // thử khớp trực tiếp với tên sản phẩm trong inventoryData
+      if (!bestMatch) {
+        inventoryData.forEach(p => {
+          const nName = normalize(p.productName);
+          if (norm.includes(nName)) {
+            bestMatch = p.productName;
+          }
+        });
+      }
+
+      return bestMatch;
+    }
+
+    // ======= LOAD DỮ LIỆU TỪ BACKEND =======
+    async function loadInventory() {
+      try {
+        const res = await fetch(`${BACKEND}/api/inventory?date=${currentDateKey}`);
+        inventoryData = await res.json();
+        renderList();
+      } catch (e) {
+        console.error(e);
+        document.getElementById("status").innerText =
+          "❌ Không tải được dữ liệu từ server. Kiểm tra backend & mạng.";
+      }
+    }
+
+    async function loadHistoryDates() {
+      try {
+        const res = await fetch(`${BACKEND}/api/history/dates`);
+        const dates = await res.json(); // ["2025-11-25", ...]
+        const select = document.getElementById("historySelect");
+        const oldVal = select.value;
+
+        select.innerHTML = '<option value="">-- Chọn ngày xem lịch sử --</option>';
+        dates.forEach(d => {
+          const opt = document.createElement("option");
+          opt.value = d;
+          opt.textContent = d;
+          select.appendChild(opt);
+        });
+
+        if (dates.includes(oldVal)) select.value = oldVal;
+
+        // đồng thời build sparkHistory
+        await buildSparkHistory(dates);
+        renderList(); // cập nhật sparkline
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function buildSparkHistory(dates) {
+      sparkHistory = {};
+      if (!Array.isArray(dates) || !dates.length) return;
+
+      // chỉ lấy tối đa 14 ngày gần nhất
+      const lastDates = dates.slice(-14);
+
+      const promises = lastDates.map(async d => {
+        const r = await fetch(`${BACKEND}/api/history/${d}`);
+        const json = await r.json(); // {dateKey, items:[{productName, cuoiBao}]}
+        (json.items || []).forEach(it => {
+          if (!sparkHistory[it.productName]) {
+            sparkHistory[it.productName] = [];
+          }
+          sparkHistory[it.productName].push({ dateKey: json.dateKey, value: it.cuoiBao });
+        });
+      });
+
+      await Promise.all(promises);
+    }
+
+    // ======= RENDER DANH SÁCH =======
+    function renderList() {
+      const listEl = document.getElementById("list");
+      const searchText = document.getElementById("search").value.toLowerCase();
+      let html = "";
+      let totalKgAll = 0;
+
+      inventoryData.forEach(p => {
+        if (searchText && !p.productName.toLowerCase().includes(searchText)) return;
+
+        const {
+          productName,
+          group,
+          kgPerBao,
+          tonBao,
+          nhapBao,
+          xuatBao,
+          thucTeBao,
+          cuoiBao,
+          cuoiKg,
+          lechBao
+        } = p;
+
+        totalKgAll += cuoiKg;
+
+        const spark = getSparkline(productName);
+
+        html += `
+          <div class="card" data-group="${group}">
+            <div class="card-header">
+              <div>
+                <div class="product-title">${productName}</div>
+                <div class="group">${group}</div>
+                <div class="unit-info">1 bao ≈ ${kgPerBao} kg</div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div>
+                <div class="label">Tồn đầu (bao)</div>
+                <input type="number" value="${tonBao}" 
+                  oninput="updateField('${productName}','tonBao',this.value)">
+              </div>
+              <div>
+                <div class="label">Nhập (bao)</div>
+                <input type="number" value="${nhapBao}" 
+                  oninput="updateField('${productName}','nhapBao',this.value)">
+              </div>
+              <div>
+                <div class="label">Xuất (bao)</div>
+                <input type="number" value="${xuatBao}" 
+                  oninput="updateField('${productName}','xuatBao',this.value)">
+              </div>
+            </div>
+
+            <div class="row" style="margin-top:4px;">
+              <div>
+                <div class="label">Thực tế kiểm (bao)</div>
+                <input type="number" value="${thucTeBao || ""}"
+                  oninput="updateField('${productName}','thucTeBao',this.value)">
+              </div>
+            </div>
+
+            <div class="result">
+              <span class="bold">Tồn cuối lý thuyết:</span> ${cuoiBao} bao ≈ ${cuoiKg} kg<br/>
+              <span class="bold">Thực tế:</span> ${thucTeBao || 0} bao 
+              &nbsp;|&nbsp;
+              <span class="bold">Lệch:</span> ${lechBao} bao
+            </div>
+            <div class="sparkline">📈 Lịch sử tồn: ${spark}</div>
+          </div>
+        `;
+      });
+
+      listEl.innerHTML = html;
+      document.getElementById("totalBox").innerText =
+        "TỔNG TỒN KHO (lý thuyết): " + totalKgAll + " kg";
+    }
+
+    // ======= UPDATE FIELD LÊN SERVER =======
+    let updateTimer = null;
+    function updateField(productName, field, val) {
+      const value = Number(val) || 0;
+      // debounce nhẹ để tránh spam request
+      if (updateTimer) clearTimeout(updateTimer);
+      updateTimer = setTimeout(() => {
+        fetch(`${BACKEND}/api/inventory/update`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            dateKey: currentDateKey,
+            productName,
+            field,
+            value
+          })
+        })
+          .then(r => r.json())
+          .then(() => {
+            loadInventory();
+          })
+          .catch(e => console.error(e));
+      }, 200);
+    }
+
+    // ======= RESET DỮ LIỆU NGÀY =======
+    async function resetData() {
+      if (!confirm("Reset toàn bộ Tồn đầu/Nhập/Xuất/Thực tế về 0 cho ngày hôm nay?")) return;
+
+      // đơn giản: load danh sách, set tất cả về 0
+      const promises = inventoryData.map(p =>
+        fetch(`${BACKEND}/api/inventory/update`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            dateKey: currentDateKey,
+            productName: p.productName,
+            field: "tonBao",
+            value: 0
+          })
+        }).then(() =>
+          fetch(`${BACKEND}/api/inventory/update`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              dateKey: currentDateKey,
+              productName: p.productName,
+              field: "nhapBao",
+              value: 0
+            })
+          }).then(() =>
+            fetch(`${BACKEND}/api/inventory/update`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                dateKey: currentDateKey,
+                productName: p.productName,
+                field: "xuatBao",
+                value: 0
+              })
+            }).then(() =>
+              fetch(`${BACKEND}/api/inventory/update`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  dateKey: currentDateKey,
+                  productName: p.productName,
+                  field: "thucTeBao",
+                  value: 0
+                })
+              })
+            )
+          )
+        )
+      );
+
+      await Promise.all(promises);
+      loadInventory();
+    }
+
+    // ======= COPY BÁO CÁO ZALO =======
+    function copyReport() {
+      let msg = "📦 *BÁO CÁO TỒN KHO CUỐI NGÀY " + currentDateKey + "*\n\n";
+      let totalKgAll = 0;
+      let totalLechBao = 0;
+
+      inventoryData.forEach(p => {
+        const {
+          productName,
+          cuoiBao,
+          cuoiKg,
+          lechBao
+        } = p;
+        totalKgAll += cuoiKg;
+        totalLechBao += lechBao;
+        msg += `• ${productName}: ${cuoiBao} bao (~${cuoiKg} kg), lệch ${lechBao} bao\n`;
+      });
+
+      msg += `\nTổng tồn kho: ${totalKgAll} kg\n`;
+      msg += `Tổng lệch: ${totalLechBao} bao\n`;
+
+      navigator.clipboard.writeText(msg);
+      alert("Đã copy báo cáo – dán vào Zalo để gửi!");
+    }
+
+    // ======= EXPORT CSV =======
+    function exportCSV() {
+      let rows = [];
+      rows.push([
+        "Sản phẩm",
+        "Nhóm",
+        "Tồn đầu (bao)",
+        "Nhập (bao)",
+        "Xuất (bao)",
+        "Tồn cuối (bao)",
+        "Tồn cuối (kg)",
+        "Thực tế (bao)",
+        "Lệch (bao)"
+      ]);
+
+      inventoryData.forEach(p => {
+        rows.push([
+          p.productName,
+          p.group,
+          p.tonBao,
+          p.nhapBao,
+          p.xuatBao,
+          p.cuoiBao,
+          p.cuoiKg,
+          p.thucTeBao,
+          p.lechBao
+        ]);
+      });
+
+      const csvContent = rows.map(r => r.join(",")).join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `bao_cao_kho_bich_tuyen_${currentDateKey}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // ======= SNAPSHOT & LỊCH SỬ =======
+    async function snapshotToday() {
+      try {
+        const res = await fetch(`${BACKEND}/api/inventory/snapshot`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dateKey: currentDateKey })
+        });
+        await res.json();
+        alert("Đã lưu snapshot tồn cuối ngày " + currentDateKey + " lên server.");
+        loadHistoryDates();
+      } catch (e) {
+        console.error(e);
+        alert("Không lưu được snapshot, kiểm tra server.");
+      }
+    }
+
+    async function showHistorySummary() {
+      const sel = document.getElementById("historySelect");
+      const dateKey = sel.value;
+      const box = document.getElementById("historySummary");
+      if (!dateKey) {
+        box.innerHTML = "";
+        return;
+      }
+      try {
+        const res = await fetch(`${BACKEND}/api/history/${dateKey}`);
+        const json = await res.json();
+        if (!json.items || !json.items.length) {
+          box.innerHTML = "Không có dữ liệu cho ngày này.";
+          return;
+        }
+        let html = `<div><b>Tồn cuối ngày ${dateKey}:</b></div><ul>`;
+        json.items.forEach(it => {
+          html += `<li>${it.productName}: ${it.cuoiBao} bao</li>`;
+        });
+        html += "</ul>";
+        box.innerHTML = html;
+      } catch (e) {
+        console.error(e);
+        box.innerHTML = "Lỗi khi tải lịch sử ngày.";
+      }
+    }
+
+    function getSparkline(productName) {
+      const arr = sparkHistory[productName];
+      if (!arr || !arr.length) return "(chưa có dữ liệu snapshot)";
+      const values = arr.map(x => x.value);
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      if (max === min) return "▇".repeat(Math.min(values.length, 10));
+      const blocks = ["▁","▂","▃","▄","▅","▆","▇"];
+      let s = "";
+      values.forEach(v => {
+        const ratio = (v - min) / (max - min);
+        const idx = Math.min(blocks.length-1, Math.max(0, Math.floor(ratio * blocks.length)));
+        s += blocks[idx];
+      });
+      return s;
+    }
+
+    // ======= AI OCR NHẬP/XUẤT =======
+    function triggerImage(type) {
+      currentImageType = type; // "nhap" or "xuat"
+      document.getElementById("imgInput").value = "";
+      document.getElementById("imgInput").click();
+    }
+
+    function handleImageChange(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const status = document.getElementById("status");
+      status.innerText = "⏳ Đang dùng AI đọc ảnh, vui lòng chờ...";
+
+      Tesseract.recognize(file, "eng", {
+        logger: m => {}
+      })
+      .then(({ data: { text } }) => {
+        status.innerText = "✅ AI đã đọc xong, đang xử lý dữ liệu...";
+        applyOcrText(text, currentImageType);
+      })
+      .catch(err => {
+        console.error(err);
+        status.innerText = "❌ Lỗi khi đọc ảnh. Vui lòng chụp rõ hơn.";
+      });
+    }
+
+    async function applyOcrText(text, type) {
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+      let summary = "";
+      let items = [];
+
+      lines.forEach(line => {
+        const matchQty = line.match(/(\d+)\s*$/);
+        if (!matchQty) return;
+        const qty = parseInt(matchQty[1], 10);
+        if (isNaN(qty) || qty === 0) return;
+
+        const productName = findProductByLine(line);
+        if (!productName) {
+          summary += `❌ Không nhận diện được: "${line}"\n`;
+          return;
+        }
+
+        items.push({ productName, qtyBao: qty });
+        summary += `✔ ${productName} – cộng ${qty} vào cột ${type === "nhap" ? "NHẬP" : "XUẤT"}\n`;
+      });
+
+      if (items.length) {
+        try {
+          await fetch(`${BACKEND}/api/inventory/bulk-apply`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              dateKey: currentDateKey,
+              type,
+              items
+            })
+          });
+          await loadInventory();
+          document.getElementById("status").innerText =
+            `✅ Đã cập nhật ${items.length} dòng từ ảnh ${type === "nhap" ? "NHẬP" : "XUẤT"}.`;
+        } catch (e) {
+          console.error(e);
+          document.getElementById("status").innerText =
+            "❌ Lỗi khi gửi dữ liệu OCR lên server.";
+        }
+      } else {
+        document.getElementById("status").innerText =
+          "⚠ AI không nhận được dòng nào phù hợp, vui lòng kiểm tra lại ảnh.";
+      }
+
+      document.getElementById("ocrSummary").innerText = summary || "Không có dòng nào được áp dụng.";
+      document.getElementById("ocrRaw").innerText = text;
+      document.getElementById("ocrOverlay").style.display = "flex";
+    }
+
+    function closeOverlay() {
+      document.getElementById("ocrOverlay").style.display = "none";
+    }
+
+    // ======= KHỞI TẠO =======
+    (async function init() {
+      currentDateKey = todayKey();
+      await loadInventory();
+      await loadHistoryDates();
+      document.getElementById("status").innerText =
+        "✅ Đã kết nối server " + BACKEND + " cho ngày " + currentDateKey;
+    })();
+  </script>
+</body>
+</html>
