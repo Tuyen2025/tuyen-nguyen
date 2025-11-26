@@ -84,6 +84,31 @@ app.get("/products", async (req, res) => {
     res.status(500).json({ message: "Error fetching products", error: err });
   }
 });
+// ====== API: THÊM SẢN PHẨM ======
+app.post("/products", async (req, res) => {
+    try {
+        const { name, group, kgPerBao } = req.body;
+
+        // KIỂM TRA DỮ LIỆU
+        if (!name || !group || !kgPerBao) {
+            return res.status(400).json({ error: "Thiếu dữ liệu bắt buộc!" });
+        }
+
+        const newProduct = await Product.create({
+            name,
+            group,
+            kgPerBao
+        });
+
+        res.status(201).json({
+            message: "Thêm sản phẩm thành công!",
+            product: newProduct
+        });
+    } catch (err) {
+        console.error("Lỗi tạo sản phẩm:", err);
+        res.status(500).json({ error: "Lỗi server" });
+    }
+});
 
 // Tạo sản phẩm
 app.post("/products", async (req, res) => {
@@ -128,3 +153,4 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
 });
+
