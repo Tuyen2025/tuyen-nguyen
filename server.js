@@ -44,7 +44,16 @@ const productSchema = new mongoose.Schema({
   kgPerBao: Number
 });
 const Product = mongoose.model("Product", productSchema);
-
+// ========== ✔ THÊM ROUTE Ở ĐÂY – ĐÚNG VỊ TRÍ NÀY ==========
+app.get("/products", async (req, res) => {
+  try {
+    const products = await Product.find({});
+    res.json(products);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching products", error: err });
+  }
+});
+// ========== HẾT ROUTE ==========
 // 2) Lưu tồn theo ngày + sản phẩm
 // dateKey dạng "2025-11-26"
 const inventorySchema = new mongoose.Schema(
@@ -283,6 +292,7 @@ app.get("/api/history/:dateKey", async (req, res) => {
 // ====== START SERVER ======
 const PORT = process.env.PORT || 10000;
 app.listen(PORT)
+
 
 
 
